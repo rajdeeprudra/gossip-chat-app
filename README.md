@@ -71,22 +71,7 @@ Make sure the frontend is pointing to the backend URL (`localhost:4040` or your 
 
 ---
 
-## 🚀 Deployment
 
-### 🔹 Frontend: [Vercel](https://vercel.com)
-- Connect your GitHub repo
-- Set environment variables if needed
-- Deploy the frontend React app
-
-### 🔹 Backend: [Render](https://render.com) or [Railway](https://railway.app)
-- Create a new Web Service
-- Connect your backend repo
-- Add environment variables (Mongo URI, JWT secret)
-- Deploy
-
-### 🔹 Database: [MongoDB Atlas](https://www.mongodb.com/cloud/atlas)
-
----
 
 ## 📂 Folder Structure
 
