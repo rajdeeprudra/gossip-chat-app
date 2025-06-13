@@ -108,7 +108,10 @@ Make sure the frontend is pointing to the backend URL (`localhost:4040` or your 
 
 ## 📸 Screenshots
 
-_Add some screenshots or a demo gif of the UI here._
+## 🖼️ Preview
+
+![Chat UI](screenshots/chat-ui.png)
+
 
 
 ---
