@@ -139,27 +139,26 @@ const clients = new Map(); // Store socket -> user info
 
 wss.on('connection', (connection, req) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
-  //const token = url.searchParams.get('token');
   const cookie = req.headers.cookie;
-if (!cookie) return connection.close();
 
-const token = cookie
-  .split(';')
-  .find(c => c.trim().startsWith('token='))
-  ?.split('=')[1];
+  if (!cookie) return connection.close();
 
-if (!token) return connection.close();
+  const token = cookie
+    .split(';')
+    .find(c => c.trim().startsWith('token='))
+    ?.split('=')[1];
 
-jwt.verify(token, jwtSecret, {}, (err, userData) => {
-  if (err) return connection.close();
+  if (!token) return connection.close();
 
-  connection.userId = userData.userId;
-  connection.username = userData.username;
-  clients.set(connection, userData);
+  jwt.verify(token, jwtSecret, {}, (err, userData) => {
+    if (err) return connection.close();
 
-  sendOnlineUsers();
-});
-}
+    connection.userId = userData.userId;
+    connection.username = userData.username;
+    clients.set(connection, userData);
+
+    sendOnlineUsers();
+  });
 
   connection.on('message', async (msg) => {
     try {
@@ -197,7 +196,7 @@ jwt.verify(token, jwtSecret, {}, (err, userData) => {
 
   function sendOnlineUsers() {
     const online = [...clients.values()]
-      .filter(user => user.userId !== connection.userId) // ✅ Exclude self
+      .filter(user => user.userId !== connection.userId)
       .map(user => ({ userId: user.userId, username: user.username }));
 
     [...wss.clients].forEach(client => {
@@ -207,3 +206,4 @@ jwt.verify(token, jwtSecret, {}, (err, userData) => {
     });
   }
 });
+
