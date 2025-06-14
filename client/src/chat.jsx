@@ -1,144 +1,184 @@
-import axios from "axios";
-import { useEffect, useState } from "react";
-import Avatar from "./Avatar";
-import uniqBy from "lodash/uniqBy";
+const express = require('express');
+const mongoose = require('mongoose');
+const cookieParser = require('cookie-parser');
+const dotenv = require('dotenv');
+const jwt = require('jsonwebtoken');
+const cors = require('cors');
+const bcrypt = require('bcryptjs');
+const User = require('./models/user');
+const Message = require('./models/message');
+const ws = require('ws');
 
-export default function Chat() {
-  const [ws, setWs] = useState(null);
-  const [onlinePeople, setOnlinePeople] = useState({});
-  const [selectedUserId, setSelectedUserId] = useState(null);
-  const [newMessageText, setNewMessageText] = useState('');
-  const [messages, setMessages] = useState([]);
-  const [userId, setUserId] = useState(null);
+dotenv.config();
 
-  useEffect(() => {
-    connectToWebSocket();
-  }, []);
+const app = express();
 
-  function connectToWebSocket() {
-    const websocket = new WebSocket("wss://gossip-backend-wv5l.onrender.com");
+app.use(express.json());
+app.use(cookieParser());
 
-    websocket.addEventListener("open", () => {
-      console.log("Connected to WebSocket Server");
-      setWs(websocket);
-    });
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://gossip-chat-app-five.vercel.app"
+];
 
-    websocket.addEventListener("message", handleMessage);
-
-    websocket.addEventListener("close", () => {
-      console.log("WebSocket Disconnected. Reconnecting...");
-      setTimeout(connectToWebSocket, 1000);
-    });
-  }
-
-  function handleMessage(event) {
-    try {
-      const messageData = JSON.parse(event.data);
-      console.log("Received Message:", messageData);
-      if (messageData.online) {
-        showOnlinePeople(messageData.online, messageData.userId);
-      } else if ('text' in messageData) {
-        setMessages(prev => [...prev, {
-          id: messageData.id,
-          text: messageData.text,
-          sender: messageData.sender
-        }]);
-      }
-    } catch (error) {
-      console.error("Error parsing WebSocket message:", error);
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS: " + origin));
     }
-  }
+  },
+  credentials: true
+}));
 
-  function showOnlinePeople(peopleArray, currentUserId) {
-    setUserId(currentUserId);
-    const people = {};
-    peopleArray.forEach(({ userId, username }) => {
-      if (userId !== currentUserId) {
-        people[userId] = username;
-      }
+const jwtSecret = process.env.JWT_SECRET;
+const bcryptSalt = bcrypt.genSaltSync(10);
+
+mongoose.connect(process.env.MONGO_URL, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+}).then(() => {
+  console.log("✅ MongoDB connected");
+}).catch(err => {
+  console.error("❌ MongoDB connection error:", err);
+  process.exit(1);
+});
+
+function getUserDataFromToken(req) {
+  return new Promise((resolve, reject) => {
+    const token = req.cookies?.token;
+    if (!token) return reject('No token');
+
+    jwt.verify(token, jwtSecret, {}, (err, userData) => {
+      if (err) return reject('Invalid token');
+      resolve(userData);
     });
-    setOnlinePeople(people);
-  }
-
-  function sendMessage(ev) {
-    ev.preventDefault();
-    if (!ws || !selectedUserId || !newMessageText) return;
-
-    const messageData = {
-      recipient: selectedUserId,
-      text: newMessageText,
-    };
-
-    ws.send(JSON.stringify(messageData));
-    setMessages(prev => [...prev, {
-      id: Date.now(),
-      text: newMessageText,
-      sender: userId
-    }]);
-    setNewMessageText('');
-  }
-
-  useEffect(() => {
-    if (selectedUserId && userId) {
-      axios.get(`/messages/${userId}/${selectedUserId}`)
-        .then(res => {
-          setMessages(res.data);
-        })
-        .catch(err => {
-          console.error("Failed to fetch messages:", err);
-        });
-    }
-  }, [selectedUserId, userId]);
-
-  const messagesWithOutDupes = uniqBy(messages, 'id');
-
-  return (
-    <div className="flex h-screen">
-      <div className="bg-purple-100 w-1/5 p-4">
-        <div className="text-purple-600 font-bold flex gap-2 mb-4">💬 GOSSIP</div>
-        <h2 className="font-bold">Online Friends</h2>
-        {Object.keys(onlinePeople).map((id) => (
-          <div
-            key={id}
-            onClick={() => setSelectedUserId(id)}
-            className={`border-b border-gray-100 py-2 pl-4 flex items-center gap-2 cursor-pointer ${id === selectedUserId ? "bg-purple-200" : ""}`}
-          >
-            <Avatar username={onlinePeople[id]} userId={id} />
-            {onlinePeople[id]}
-          </div>
-        ))}
-      </div>
-
-      <div className="flex flex-col bg-purple-300 w-4/5 p-4">
-        <div className="flex-grow flex flex-col overflow-auto p-4">
-          {!selectedUserId && <p className="text-lg text-purple-100">&larr; Select a friend to start Gossiping!!</p>}
-          {!!selectedUserId && (
-            <div className="flex flex-col space-y-2">
-              {messagesWithOutDupes.map((message) => (
-                <div key={message.id} className={`flex ${message.sender === userId ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`p-2 m-2 rounded-md text-sm max-w-xs ${message.sender === userId ? 'bg-purple-500 text-white' : 'bg-white text-gray-700'}`}>
-                    {message.text}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        {!!selectedUserId && (
-          <form className="flex gap-2 mt-2" onSubmit={sendMessage}>
-            <input
-              type="text"
-              value={newMessageText}
-              onChange={ev => setNewMessageText(ev.target.value)}
-              placeholder="Gossip here..."
-              className="bg-white border flex-grow p-2 rounded-sm"
-            />
-            <button type="submit" className="bg-purple-700 p-2 text-white rounded-sm">
-              Send
-            </button>
-          </form>
-        )}
-      </div>
-    </div>
-  );
+  });
 }
+
+app.get('/test', (req, res) => {
+  res.json('Test ok');
+});
+
+app.get('/profile', async (req, res) => {
+  const token = req.cookies?.token;
+  if (!token) return res.status(401).json({ error: 'No token' });
+
+  jwt.verify(token, jwtSecret, {}, (err, userData) => {
+    if (err) return res.status(403).json({ error: 'Invalid token' });
+    res.json(userData);
+  });
+});
+
+app.post('/register', async (req, res) => {
+  const { username, password } = req.body;
+
+  const userExists = await User.findOne({ username });
+  if (userExists) return res.status(400).json({ error: 'Username already exists' });
+
+  const hashedPassword = bcrypt.hashSync(password, bcryptSalt);
+  const userDoc = await User.create({ username, password: hashedPassword });
+
+  jwt.sign({ userId: userDoc._id, username }, jwtSecret, {}, (err, token) => {
+    if (err) throw err;
+    res.cookie('token', token, { httpOnly: true, sameSite: 'lax' }).status(201).json({ id: userDoc._id });
+  });
+});
+
+app.post('/login', async (req, res) => {
+  const { username, password } = req.body;
+
+  const userDoc = await User.findOne({ username });
+  if (!userDoc) return res.status(401).json({ error: 'User not found' });
+
+  const isPassValid = bcrypt.compareSync(password, userDoc.password);
+  if (!isPassValid) return res.status(401).json({ error: 'Invalid password' });
+
+  jwt.sign({ userId: userDoc._id, username }, jwtSecret, {}, (err, token) => {
+    if (err) throw err;
+    res.cookie('token', token, { httpOnly: true, sameSite: 'lax' }).json({ id: userDoc._id });
+  });
+});
+
+app.get('/messages/:userId1/:userId2', async (req, res) => {
+  const { userId1, userId2 } = req.params;
+
+  const messages = await Message.find({
+    $or: [
+      { sender: userId1, recipient: userId2 },
+      { sender: userId2, recipient: userId1 }
+    ]
+  }).sort({ createdAt: 1 });
+
+  res.json(messages);
+});
+
+const server = app.listen(4040, () => console.log('🚀 Server running on 4040'));
+
+const wss = new ws.WebSocketServer({ server });
+
+const clients = new Map();
+
+wss.on('connection', (connection, req) => {
+  const token = req.headers.cookie?.split('; ').find(str => str.startsWith('token='))?.split('=')[1];
+
+  if (token) {
+    jwt.verify(token, jwtSecret, {}, (err, userData) => {
+      if (err) return connection.close();
+
+      connection.userId = userData.userId;
+      connection.username = userData.username;
+      clients.set(connection, userData);
+
+      sendOnlineUsers();
+    });
+  }
+
+  connection.on('message', async (msg) => {
+    try {
+      const messageData = JSON.parse(msg);
+      const { recipient, text } = messageData;
+
+      if (recipient && text) {
+        const messageDoc = await Message.create({
+          sender: connection.userId,
+          recipient,
+          text,
+        });
+
+        [...wss.clients].forEach(client => {
+          if (client.readyState === ws.OPEN && client.userId === recipient) {
+            client.send(JSON.stringify({
+              text,
+              sender: connection.userId,
+              recipient,
+              id: messageDoc._id,
+              createdAt: messageDoc.createdAt
+            }));
+          }
+        });
+      }
+    } catch (err) {
+      console.error("Error processing message:", err);
+    }
+  });
+
+  connection.on('close', () => {
+    clients.delete(connection);
+    sendOnlineUsers();
+  });
+
+  function sendOnlineUsers() {
+    const online = [...clients.values()].map(user => ({
+      userId: user.userId,
+      username: user.username
+    }));
+
+    [...wss.clients].forEach(client => {
+      if (client.readyState === ws.OPEN) {
+        client.send(JSON.stringify({ online, userId: client.userId }));
+      }
+    });
+  }
+});
