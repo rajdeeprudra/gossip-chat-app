@@ -15,22 +15,9 @@ const app = express();
 
 app.use(express.json());
 app.use(cookieParser());
-const cors = require('cors');
-
-const allowedOrigins = [
-  "http://localhost:5173", // for development
-  "https://gossip-chat-app-five.vercel.app" //  Vercel frontend
-];
-
 app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
-  credentials: true
+  credentials: true,
+  origin: "https://gossip-chat-app-five.vercel.app/",
 }));
 
 
