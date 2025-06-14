@@ -139,18 +139,27 @@ const clients = new Map(); // Store socket -> user info
 
 wss.on('connection', (connection, req) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
-  const token = url.searchParams.get('token');
-  if (token) {
-    jwt.verify(token, jwtSecret, {}, (err, userData) => {
-      if (err) return connection.close();
+  //const token = url.searchParams.get('token');
+  const cookie = req.headers.cookie;
+if (!cookie) return connection.close();
 
-      connection.userId = userData.userId;
-      connection.username = userData.username;
-      clients.set(connection, userData);
+const token = cookie
+  .split(';')
+  .find(c => c.trim().startsWith('token='))
+  ?.split('=')[1];
 
-      sendOnlineUsers();
-    });
-  }
+if (!token) return connection.close();
+
+jwt.verify(token, jwtSecret, {}, (err, userData) => {
+  if (err) return connection.close();
+
+  connection.userId = userData.userId;
+  connection.username = userData.username;
+  clients.set(connection, userData);
+
+  sendOnlineUsers();
+});
+}
 
   connection.on('message', async (msg) => {
     try {
