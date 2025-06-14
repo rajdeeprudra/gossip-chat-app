@@ -19,8 +19,8 @@ export default function Chat() {
   }, []);
 
   function connectToWebSocket() {
-    const token = document.cookie.split('; ').find(row => row.startsWith('token=')).split('=')[1];
-    const websocket = new WebSocket(`wss://gossip-backend-wv5l.onrender.com?token=${token}`);
+    
+    const websocket = new WebSocket("wss://gossip-backend-wv5l.onrender.com");
 
 
     websocket.addEventListener("open", () => {
