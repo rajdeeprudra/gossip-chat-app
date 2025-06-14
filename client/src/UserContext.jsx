@@ -11,7 +11,7 @@ export function UserContextProvider({ children }) {
 
   useEffect(() => {
     axios
-      .get("http://localhost:4040/profile", { withCredentials: true })
+      .get("https://gossip-backend-wv5l.onrender.com/profile", { withCredentials: true })
       .then((response) => {
         setUsername(response.data.username);
         setId(response.data.id);
