@@ -3,8 +3,8 @@ import { useEffect, useState } from "react";
 import Avatar from "./Avatar";
 import uniqBy from "lodash/uniqBy";
 
-axios.defaults.baseURL = "https://gossip-backend-wv5l.onrender.com";
-axios.get('/profile', { withCredentials: true })
+//axios.defaults.baseURL = "https://gossip-backend-wv5l.onrender.com";
+axios.get('https://gossip-backend-wv5l.onrender.com/profile', { withCredentials: true })
 
 //axios.defaults.withCredentials = true;
 
