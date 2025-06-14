@@ -15,12 +15,10 @@ const app = express();
 
 app.use(express.json());
 app.use(cookieParser());
-const cors = require('cors');
 
 const allowedOrigins = [
   "http://localhost:5173",
-  
-  "https://gossip-chat-app-five.vercel.app/", 
+  "https://gossip-chat-app-five.vercel.app"
 ];
 
 app.use(cors({
@@ -33,8 +31,6 @@ app.use(cors({
   },
   credentials: true
 }));
-
-
 
 const jwtSecret = process.env.JWT_SECRET;
 const bcryptSalt = bcrypt.genSaltSync(10);
@@ -49,7 +45,6 @@ mongoose.connect(process.env.MONGO_URL, {
   process.exit(1);
 });
 
-// JWT token auth helper
 function getUserDataFromToken(req) {
   return new Promise((resolve, reject) => {
     const token = req.cookies?.token;
@@ -61,8 +56,6 @@ function getUserDataFromToken(req) {
     });
   });
 }
-
-// ROUTES
 
 app.get('/test', (req, res) => {
   res.json('Test ok');
@@ -108,7 +101,6 @@ app.post('/login', async (req, res) => {
   });
 });
 
-// FIXED: Load all messages between two users
 app.get('/messages/:userId1/:userId2', async (req, res) => {
   const { userId1, userId2 } = req.params;
 
@@ -122,12 +114,11 @@ app.get('/messages/:userId1/:userId2', async (req, res) => {
   res.json(messages);
 });
 
-// SERVER + WS
 const server = app.listen(4040, () => console.log('🚀 Server running on 4040'));
 
 const wss = new ws.WebSocketServer({ server });
 
-const clients = new Map(); // Store socket -> user info
+const clients = new Map();
 
 wss.on('connection', (connection, req) => {
   const token = req.headers.cookie?.split('; ').find(str => str.startsWith('token='))?.split('=')[1];
@@ -179,13 +170,14 @@ wss.on('connection', (connection, req) => {
   });
 
   function sendOnlineUsers() {
-    const online = [...clients.values()]
-      .filter(user => user.userId !== connection.userId) // ✅ Exclude self
-      .map(user => ({ userId: user.userId, username: user.username }));
+    const online = [...clients.values()].map(user => ({
+      userId: user.userId,
+      username: user.username
+    }));
 
     [...wss.clients].forEach(client => {
       if (client.readyState === ws.OPEN) {
-        client.send(JSON.stringify({ online }));
+        client.send(JSON.stringify({ online, userId: client.userId }));
       }
     });
   }
