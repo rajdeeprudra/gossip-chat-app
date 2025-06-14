@@ -130,8 +130,8 @@ const wss = new ws.WebSocketServer({ server });
 const clients = new Map(); // Store socket -> user info
 
 wss.on('connection', (connection, req) => {
-  const token = req.headers.cookie?.split('; ').find(str => str.startsWith('token='))?.split('=')[1];
-
+  const url = new URL(req.url, `http://${req.headers.host}`);
+  const token = url.searchParams.get('token');
   if (token) {
     jwt.verify(token, jwtSecret, {}, (err, userData) => {
       if (err) return connection.close();
