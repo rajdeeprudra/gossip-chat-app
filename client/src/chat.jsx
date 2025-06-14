@@ -16,7 +16,7 @@ export default function Chat() {
   }, []);
 
   function connectToWebSocket() {
-    const websocket = new WebSocket("ws://localhost:4040");
+    const websocket = new WebSocket("ws://gossip-backend-wv5l.onrender.com");
 
     websocket.addEventListener("open", () => {
       console.log("Connected to WebSocket Server");
