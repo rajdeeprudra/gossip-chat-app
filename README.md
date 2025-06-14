@@ -95,7 +95,7 @@ Make sure the frontend is pointing to the backend URL (`localhost:4040` or your 
 
 ## 🖼️ Preview
 
-![Chat UI](screenshots/chat-ui.png)
+![Chat UI](screenshots/chat-page.png)
 
 
 
