@@ -4,7 +4,9 @@ import Avatar from "./Avatar";
 import uniqBy from "lodash/uniqBy";
 
 axios.defaults.baseURL = "https://gossip-backend-wv5l.onrender.com";
-axios.defaults.withCredentials = true;
+axios.get('/profile', { withCredentials: true })
+
+//axios.defaults.withCredentials = true;
 
 export default function Chat() {
   const [ws, setWs] = useState(null);
