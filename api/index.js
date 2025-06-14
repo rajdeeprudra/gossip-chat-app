@@ -89,7 +89,11 @@ app.post('/register', async (req, res) => {
 
   jwt.sign({ userId: userDoc._id, username }, jwtSecret, {}, (err, token) => {
     if (err) throw err;
-    res.cookie('token', token, { httpOnly: true, sameSite: 'lax' }).status(201).json({ id: userDoc._id });
+    res.cookie('token', token, { 
+    httpOnly: true, 
+    sameSite: 'None',
+    secure: true
+    }).status(201).json({ id: userDoc._id });
   });
 });
 
@@ -104,7 +108,11 @@ app.post('/login', async (req, res) => {
 
   jwt.sign({ userId: userDoc._id, username }, jwtSecret, {}, (err, token) => {
     if (err) throw err;
-    res.cookie('token', token, { httpOnly: true, sameSite: 'lax' }).json({ id: userDoc._id });
+    res.cookie('token', token, { 
+      httpOnly: true,
+      sameSite: 'None',
+      secure: true
+    }).json({ id: userDoc._id });
   });
 });
 
