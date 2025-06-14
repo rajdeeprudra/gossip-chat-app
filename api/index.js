@@ -17,7 +17,7 @@ app.use(express.json());
 app.use(cookieParser());
 app.use(cors({
   credentials: true,
-  origin: "https://gossip-chat-app-five.vercel.app/",
+  origin: true,
 }));
 
 
