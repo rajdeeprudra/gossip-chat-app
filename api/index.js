@@ -20,7 +20,7 @@ const cors = require('cors');
 const allowedOrigins = [
   "http://localhost:5173",
   
-  "https://gossip-chat-app-five.vercel.app/", 
+  "https://gossip-chat-app-five.vercel.app", 
 ];
 
 app.use(cors({
