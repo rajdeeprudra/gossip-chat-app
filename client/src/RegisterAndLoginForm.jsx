@@ -13,7 +13,7 @@ export default function RegisterAndLoginForm() {
     const url = isLoginOrRegister === 'register' ? 'register' : 'login';
     try {
       const { data } = await axios.post(
-        `http://localhost:4040/${url}`, // Ensure you have the correct base URL here
+        `https://gossip-backend-wv5l.onrender.com/${url}`, // Ensure you have the correct base URL here
         { username, password }
       );
 
