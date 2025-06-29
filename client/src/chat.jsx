@@ -7,7 +7,7 @@ export default function Chat() {
   const [ws, setWs] = useState(null);
   const [onlinePeople, setOnlinePeople] = useState({});
   const [allUsers, setAllUsers] = useState({});
-  const [selectedUserId, setSelectedUserId] = useState(null);
+  const [selectedUserId, setSelectedUserId] = useState(localStorage.getItem("selectedUserId") || null);
   const [newMessageText, setNewMessageText] = useState('');
   const [messages, setMessages] = useState([]);
   const [userId, setUserId] = useState(null);
@@ -22,11 +22,6 @@ export default function Chat() {
         });
         setAllUsers(usersMap);
       });
-
-    const savedSelectedUser = localStorage.getItem("selectedUserId");
-    if (savedSelectedUser) {
-      setSelectedUserId(savedSelectedUser);
-    }
   }, []);
 
   function connectToWebSocket() {
@@ -53,11 +48,13 @@ export default function Chat() {
         });
         setOnlinePeople(onlineMap);
       } else if ('text' in messageData) {
-        setMessages(prev => [...prev, {
-          id: messageData.id,
-          text: messageData.text,
-          sender: messageData.sender
-        }]);
+        if (selectedUserId === messageData.sender || userId === messageData.sender) {
+          setMessages(prev => [...prev, {
+            id: messageData.id,
+            text: messageData.text,
+            sender: messageData.sender
+          }]);
+        }
       }
     } catch (error) {
       console.error("WebSocket message error:", error);
@@ -82,6 +79,7 @@ export default function Chat() {
 
   useEffect(() => {
     if (selectedUserId && userId) {
+      localStorage.setItem("selectedUserId", selectedUserId);
       axios.get(`/messages/${userId}/${selectedUserId}`)
         .then(res => setMessages(res.data))
         .catch(err => console.error("Fetch messages failed:", err));
