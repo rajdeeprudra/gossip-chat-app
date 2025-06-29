@@ -13,6 +13,12 @@ export default function Chat() {
   const [userId, setUserId] = useState(null);
 
   useEffect(() => {
+    axios.get('/profile', { withCredentials: true }).then(res => {
+      setUserId(res.data.userId);
+    });
+  }, []);
+
+  useEffect(() => {
     connectToWebSocket();
     axios.get('/users', { withCredentials: true }).then(res => {
       const usersMap = {};
@@ -27,7 +33,7 @@ export default function Chat() {
     if (selectedUserId && userId) {
       axios.get(`/messages/${userId}/${selectedUserId}`)
         .then(res => setMessages(res.data))
-        .catch(err => console.error("Failed to fetch messages:", err));
+        .catch(err => console.error("Fetch messages failed:", err));
     }
   }, [selectedUserId, userId]);
 
@@ -56,7 +62,6 @@ export default function Chat() {
         });
         setOnlinePeople(onlineMap);
       } else if ('text' in messageData) {
-        // Append only if it's for the current chat
         if (messageData.sender === selectedUserId || messageData.recipient === selectedUserId) {
           setMessages(prev => [...prev, {
             id: messageData.id,
@@ -64,8 +69,6 @@ export default function Chat() {
             sender: messageData.sender
           }]);
         }
-      } else if (messageData.currentUserId) {
-        setUserId(messageData.currentUserId);
       }
     } catch (error) {
       console.error("WebSocket message error:", error);
@@ -152,3 +155,4 @@ export default function Chat() {
     </div>
   );
 }
+
