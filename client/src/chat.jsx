@@ -7,32 +7,40 @@ export default function Chat() {
   const [ws, setWs] = useState(null);
   const [onlinePeople, setOnlinePeople] = useState({});
   const [allUsers, setAllUsers] = useState({});
-  const [selectedUserId, setSelectedUserId] = useState(localStorage.getItem("selectedUserId") || null);
+  const [selectedUserId, setSelectedUserId] = useState(() => localStorage.getItem("selectedUserId"));
   const [newMessageText, setNewMessageText] = useState('');
   const [messages, setMessages] = useState([]);
   const [userId, setUserId] = useState(null);
 
   useEffect(() => {
     connectToWebSocket();
-    axios.get('/users', { withCredentials: true })
-      .then(res => {
-        const usersMap = {};
-        res.data.forEach(user => {
-          usersMap[user._id] = user.username;
-        });
-        setAllUsers(usersMap);
+    axios.get('/users', { withCredentials: true }).then(res => {
+      const usersMap = {};
+      res.data.forEach(user => {
+        usersMap[user._id] = user.username;
       });
+      setAllUsers(usersMap);
+    });
   }, []);
+
+  useEffect(() => {
+    if (selectedUserId && userId) {
+      axios.get(`/messages/${userId}/${selectedUserId}`)
+        .then(res => setMessages(res.data))
+        .catch(err => console.error("Failed to fetch messages:", err));
+    }
+  }, [selectedUserId, userId]);
 
   function connectToWebSocket() {
     const websocket = new WebSocket("wss://gossip-backend-wv5l.onrender.com");
+
     websocket.addEventListener("open", () => {
-      console.log("Connected to WebSocket Server");
       setWs(websocket);
     });
+
     websocket.addEventListener("message", handleMessage);
+
     websocket.addEventListener("close", () => {
-      console.log("WebSocket Disconnected. Reconnecting...");
       setTimeout(connectToWebSocket, 1000);
     });
   }
@@ -40,21 +48,24 @@ export default function Chat() {
   function handleMessage(event) {
     try {
       const messageData = JSON.parse(event.data);
-      if (messageData.type === 'online-users') {
-        setUserId(messageData.currentUserId);
+
+      if (messageData.online) {
         const onlineMap = {};
         messageData.online.forEach(({ userId, username }) => {
           onlineMap[userId] = username;
         });
         setOnlinePeople(onlineMap);
       } else if ('text' in messageData) {
-        if (selectedUserId === messageData.sender || userId === messageData.sender) {
+        // Append only if it's for the current chat
+        if (messageData.sender === selectedUserId || messageData.recipient === selectedUserId) {
           setMessages(prev => [...prev, {
             id: messageData.id,
             text: messageData.text,
             sender: messageData.sender
           }]);
         }
+      } else if (messageData.currentUserId) {
+        setUserId(messageData.currentUserId);
       }
     } catch (error) {
       console.error("WebSocket message error:", error);
@@ -64,10 +75,12 @@ export default function Chat() {
   function sendMessage(ev) {
     ev.preventDefault();
     if (!ws || !selectedUserId || !newMessageText) return;
+
     const messageData = {
       recipient: selectedUserId,
       text: newMessageText,
     };
+
     ws.send(JSON.stringify(messageData));
     setMessages(prev => [...prev, {
       id: Date.now(),
@@ -76,15 +89,6 @@ export default function Chat() {
     }]);
     setNewMessageText('');
   }
-
-  useEffect(() => {
-    if (selectedUserId && userId) {
-      localStorage.setItem("selectedUserId", selectedUserId);
-      axios.get(`/messages/${userId}/${selectedUserId}`)
-        .then(res => setMessages(res.data))
-        .catch(err => console.error("Fetch messages failed:", err));
-    }
-  }, [selectedUserId, userId]);
 
   const messagesWithOutDupes = uniqBy(messages, 'id');
 
@@ -148,4 +152,3 @@ export default function Chat() {
     </div>
   );
 }
-
