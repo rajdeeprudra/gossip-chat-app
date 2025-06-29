@@ -57,7 +57,11 @@ export default function Chat() {
     if (userId && selectedUserId) {
       axios.get(`/messages/${userId}/${selectedUserId}`, { withCredentials: true })
         .then(res => {
-          setMessages(res.data);
+          setMessages(res.data.map(msg => ({
+            id: msg._id,
+            text: msg.text,
+            sender: msg.sender
+          })));
         })
         .catch(err => console.error("❌ Message fetch failed:", err));
     }
@@ -74,11 +78,11 @@ export default function Chat() {
         });
         setOnlinePeople(people);
       } else if ('text' in data) {
-        setMessages(prev => [...prev, {
-          id: data._id || Date.now(),
+        setMessages(prev => uniqBy([...prev, {
+          id: data.id || data._id || Date.now(),
           text: data.text,
           sender: data.sender
-        }]);
+        }], 'id'));
       }
     } catch (err) {
       console.error("WebSocket message error:", err);
@@ -95,19 +99,12 @@ export default function Chat() {
     };
 
     ws.send(JSON.stringify(messageData));
-    setMessages(prev => [...prev, {
-      id: Date.now(),
-      text: newMessageText,
-      sender: userId
-    }]);
     setNewMessageText('');
   }
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
-
-  const messagesWithoutDupes = uniqBy(messages, 'id');
 
   return (
     <div className="flex h-screen">
@@ -141,7 +138,7 @@ export default function Chat() {
           {!selectedUserId && <p className="text-lg text-purple-100">← Select a friend to start Gossiping!!</p>}
           {!!selectedUserId && (
             <div className="flex flex-col space-y-2">
-              {messagesWithoutDupes.map((msg) => (
+              {messages.map((msg) => (
                 <div key={msg.id} className={`flex ${msg.sender === userId ? 'justify-end' : 'justify-start'}`}>
                   <div className={`p-2 m-2 rounded-md text-sm max-w-xs ${msg.sender === userId ? 'bg-purple-500 text-white' : 'bg-white text-gray-700'}`}>
                     {msg.text}
