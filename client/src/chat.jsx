@@ -7,19 +7,30 @@ export default function Chat() {
   const [ws, setWs] = useState(null);
   const [onlinePeople, setOnlinePeople] = useState({});
   const [allUsers, setAllUsers] = useState({});
-  const [selectedUserId, setSelectedUserId] = useState(() => localStorage.getItem("selectedUserId"));
+  const [selectedUserId, setSelectedUserId] = useState(null);
   const [newMessageText, setNewMessageText] = useState('');
   const [messages, setMessages] = useState([]);
   const [userId, setUserId] = useState(null);
 
+  // ✅ Fetch userId from /profile on page load
   useEffect(() => {
-    axios.get('/profile', { withCredentials: true }).then(res => {
-      setUserId(res.data.userId);
-    });
+    axios.get('/profile', { withCredentials: true })
+      .then(res => {
+        setUserId(res.data.userId);
+
+        // Also restore selectedUserId from localStorage
+        const savedSelected = localStorage.getItem("selectedUserId");
+        if (savedSelected) {
+          setSelectedUserId(savedSelected);
+        }
+      })
+      .catch(err => {
+        console.error("Error loading profile:", err);
+      });
   }, []);
 
+  // ✅ Load all registered users
   useEffect(() => {
-    connectToWebSocket();
     axios.get('/users', { withCredentials: true }).then(res => {
       const usersMap = {};
       res.data.forEach(user => {
@@ -29,59 +40,69 @@ export default function Chat() {
     });
   }, []);
 
+  // ✅ Load messages only after both userId and selectedUserId are ready
   useEffect(() => {
-    if (selectedUserId && userId) {
-      axios.get(`/messages/${userId}/${selectedUserId}`)
-        .then(res => setMessages(res.data))
-        .catch(err => console.error("Fetch messages failed:", err));
+    if (userId && selectedUserId) {
+      axios.get(`/messages/${userId}/${selectedUserId}`, { withCredentials: true })
+        .then(res => {
+          setMessages(res.data);
+        })
+        .catch(err => console.error("Error loading messages:", err));
     }
   }, [selectedUserId, userId]);
 
-  function connectToWebSocket() {
+  // ✅ WebSocket connection
+  useEffect(() => {
     const websocket = new WebSocket("wss://gossip-backend-wv5l.onrender.com");
 
     websocket.addEventListener("open", () => {
+      console.log("WebSocket connected");
       setWs(websocket);
     });
 
     websocket.addEventListener("message", handleMessage);
 
     websocket.addEventListener("close", () => {
-      setTimeout(connectToWebSocket, 1000);
+      console.log("WebSocket disconnected, retrying...");
+      setTimeout(() => connectToWebSocket(), 1000);
     });
-  }
 
-  function handleMessage(event) {
-    try {
-      const messageData = JSON.parse(event.data);
+    function handleMessage(event) {
+      try {
+        const data = JSON.parse(event.data);
 
-      if (messageData.online) {
-        const onlineMap = {};
-        messageData.online.forEach(({ userId, username }) => {
-          onlineMap[userId] = username;
-        });
-        setOnlinePeople(onlineMap);
-      } else if ('text' in messageData) {
-        if (messageData.sender === selectedUserId || messageData.recipient === selectedUserId) {
-          setMessages(prev => [...prev, {
-            id: messageData.id,
-            text: messageData.text,
-            sender: messageData.sender
-          }]);
+        if (data.online) {
+          const people = {};
+          data.online.forEach(({ userId, username }) => {
+            people[userId] = username;
+          });
+          setOnlinePeople(people);
+        } else if ('text' in data) {
+          // Only update if message matches current chat
+          if (data.sender === selectedUserId || data.recipient === selectedUserId) {
+            setMessages(prev => [...prev, {
+              id: data._id || Date.now(),
+              text: data.text,
+              sender: data.sender
+            }]);
+          }
         }
+      } catch (err) {
+        console.error("WebSocket error:", err);
       }
-    } catch (error) {
-      console.error("WebSocket message error:", error);
     }
-  }
 
-  function sendMessage(ev) {
-    ev.preventDefault();
+    return () => websocket.close();
+  }, [selectedUserId]);
+
+  // ✅ Send a message
+  function sendMessage(e) {
+    e.preventDefault();
     if (!ws || !selectedUserId || !newMessageText) return;
 
     const messageData = {
       recipient: selectedUserId,
-      text: newMessageText,
+      text: newMessageText
     };
 
     ws.send(JSON.stringify(messageData));
@@ -93,7 +114,7 @@ export default function Chat() {
     setNewMessageText('');
   }
 
-  const messagesWithOutDupes = uniqBy(messages, 'id');
+  const messagesWithoutDupes = uniqBy(messages, 'id');
 
   return (
     <div className="flex h-screen">
@@ -127,10 +148,10 @@ export default function Chat() {
           {!selectedUserId && <p className="text-lg text-purple-100">← Select a friend to start Gossiping!!</p>}
           {!!selectedUserId && (
             <div className="flex flex-col space-y-2">
-              {messagesWithOutDupes.map((message) => (
-                <div key={message.id} className={`flex ${message.sender === userId ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`p-2 m-2 rounded-md text-sm max-w-xs ${message.sender === userId ? 'bg-purple-500 text-white' : 'bg-white text-gray-700'}`}>
-                    {message.text}
+              {messagesWithoutDupes.map((msg) => (
+                <div key={msg.id} className={`flex ${msg.sender === userId ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`p-2 m-2 rounded-md text-sm max-w-xs ${msg.sender === userId ? 'bg-purple-500 text-white' : 'bg-white text-gray-700'}`}>
+                    {msg.text}
                   </div>
                 </div>
               ))}
@@ -142,7 +163,7 @@ export default function Chat() {
             <input
               type="text"
               value={newMessageText}
-              onChange={ev => setNewMessageText(ev.target.value)}
+              onChange={e => setNewMessageText(e.target.value)}
               placeholder="Gossip here..."
               className="bg-white border flex-grow p-2 rounded-sm"
             />
@@ -155,4 +176,5 @@ export default function Chat() {
     </div>
   );
 }
+
 
