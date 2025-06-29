@@ -22,6 +22,11 @@ export default function Chat() {
         });
         setAllUsers(usersMap);
       });
+
+    const savedSelectedUser = localStorage.getItem("selectedUserId");
+    if (savedSelectedUser) {
+      setSelectedUserId(savedSelectedUser);
+    }
   }, []);
 
   function connectToWebSocket() {
@@ -96,7 +101,10 @@ export default function Chat() {
           return (
             <div
               key={id}
-              onClick={() => setSelectedUserId(id)}
+              onClick={() => {
+                setSelectedUserId(id);
+                localStorage.setItem("selectedUserId", id);
+              }}
               className={`border-b border-gray-100 py-2 pl-4 flex items-center gap-2 cursor-pointer ${id === selectedUserId ? "bg-purple-200" : ""}`}
             >
               <Avatar username={username} userId={id} />
@@ -111,7 +119,7 @@ export default function Chat() {
 
       <div className="flex flex-col bg-purple-300 w-4/5 p-4">
         <div className="flex-grow flex flex-col overflow-auto p-4">
-          {!selectedUserId && <p className="text-lg text-purple-100">&larr; Select a friend to start Gossiping!!</p>}
+          {!selectedUserId && <p className="text-lg text-purple-100">← Select a friend to start Gossiping!!</p>}
           {!!selectedUserId && (
             <div className="flex flex-col space-y-2">
               {messagesWithOutDupes.map((message) => (
