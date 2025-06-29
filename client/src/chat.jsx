@@ -1,5 +1,5 @@
 import axios from "axios";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Avatar from "./Avatar";
 import uniqBy from "lodash/uniqBy";
 
@@ -11,52 +11,9 @@ export default function Chat() {
   const [newMessageText, setNewMessageText] = useState('');
   const [messages, setMessages] = useState([]);
   const [userId, setUserId] = useState(null);
+  const messagesEndRef = useRef(null);
 
-  // ✅ Fetch userId and selectedUserId on load
-  useEffect(() => {
-    axios.get('/profile', { withCredentials: true })
-      .then(res => {
-        console.log("🟢 Loaded userId:", res.data.userId);
-        setUserId(res.data.userId);
-
-        const savedSelectedId = localStorage.getItem("selectedUserId");
-        if (savedSelectedId) {
-          console.log("🟢 Loaded selectedUserId from localStorage:", savedSelectedId);
-          setSelectedUserId(savedSelectedId);
-        }
-      })
-      .catch(err => console.error("❌ Error loading profile:", err));
-  }, []);
-
-  // ✅ Load all registered users
-  useEffect(() => {
-    axios.get('/users', { withCredentials: true }).then(res => {
-      const usersMap = {};
-      res.data.forEach(user => {
-        usersMap[user._id] = user.username;
-      });
-      setAllUsers(usersMap);
-    });
-  }, []);
-
-  // ✅ Fetch messages only when both userId and selectedUserId are available
-  useEffect(() => {
-    console.log("🟡 userId:", userId);
-    console.log("🟡 selectedUserId:", selectedUserId);
-
-    if (userId && selectedUserId) {
-      console.log("📥 Fetching messages for:", userId, selectedUserId);
-      axios.get(`/messages/${userId}/${selectedUserId}`, { withCredentials: true })
-        .then(res => {
-          console.log("✅ Got messages:", res.data);
-          setMessages(res.data);
-        })
-        .catch(err => console.error("❌ Message fetch failed:", err));
-    }
-  }, [userId, selectedUserId]);
-
-  // ✅ WebSocket connection
-  useEffect(() => {
+  function connectToWebSocket() {
     const websocket = new WebSocket("wss://gossip-backend-wv5l.onrender.com");
 
     websocket.addEventListener("open", () => {
@@ -70,33 +27,63 @@ export default function Chat() {
       console.log("⚠️ WebSocket disconnected, retrying...");
       setTimeout(() => connectToWebSocket(), 1000);
     });
+  }
 
-    function handleMessage(event) {
-      try {
-        const data = JSON.parse(event.data);
+  useEffect(() => {
+    axios.get('/profile', { withCredentials: true })
+      .then(res => {
+        setUserId(res.data.userId);
 
-        if (data.online) {
-          const people = {};
-          data.online.forEach(({ userId, username }) => {
-            people[userId] = username;
-          });
-          setOnlinePeople(people);
-        } else if ('text' in data) {
-          if (data.sender === selectedUserId || data.recipient === selectedUserId) {
-            setMessages(prev => [...prev, {
-              id: data._id || Date.now(),
-              text: data.text,
-              sender: data.sender
-            }]);
-          }
+        const savedSelectedId = localStorage.getItem("selectedUserId");
+        if (savedSelectedId) {
+          setSelectedUserId(savedSelectedId);
         }
-      } catch (err) {
-        console.error("WebSocket message error:", err);
-      }
-    }
+        connectToWebSocket();
+      })
+      .catch(err => console.error("❌ Error loading profile:", err));
+  }, []);
 
-    return () => websocket.close();
-  }, [selectedUserId]);
+  useEffect(() => {
+    axios.get('/users', { withCredentials: true }).then(res => {
+      const usersMap = {};
+      res.data.forEach(user => {
+        usersMap[user._id] = user.username;
+      });
+      setAllUsers(usersMap);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (userId && selectedUserId) {
+      axios.get(`/messages/${userId}/${selectedUserId}`, { withCredentials: true })
+        .then(res => {
+          setMessages(res.data);
+        })
+        .catch(err => console.error("❌ Message fetch failed:", err));
+    }
+  }, [userId, selectedUserId]);
+
+  function handleMessage(event) {
+    try {
+      const data = JSON.parse(event.data);
+
+      if (data.online) {
+        const people = {};
+        data.online.forEach(({ userId, username }) => {
+          people[userId] = username;
+        });
+        setOnlinePeople(people);
+      } else if ('text' in data) {
+        setMessages(prev => [...prev, {
+          id: data._id || Date.now(),
+          text: data.text,
+          sender: data.sender
+        }]);
+      }
+    } catch (err) {
+      console.error("WebSocket message error:", err);
+    }
+  }
 
   function sendMessage(e) {
     e.preventDefault();
@@ -115,6 +102,10 @@ export default function Chat() {
     }]);
     setNewMessageText('');
   }
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
   const messagesWithoutDupes = uniqBy(messages, 'id');
 
@@ -157,6 +148,7 @@ export default function Chat() {
                   </div>
                 </div>
               ))}
+              <div ref={messagesEndRef}></div>
             </div>
           )}
         </div>
@@ -178,5 +170,6 @@ export default function Chat() {
     </div>
   );
 }
+
 
 
