@@ -99,6 +99,14 @@ export default function Chat() {
     };
 
     ws.send(JSON.stringify(messageData));
+
+    const tempMessage = {
+      id: Date.now(),
+      text: newMessageText,
+      sender: userId
+    };
+
+    setMessages(prev => [...prev, tempMessage]);
     setNewMessageText('');
   }
 
@@ -167,6 +175,5 @@ export default function Chat() {
     </div>
   );
 }
-
 
 
