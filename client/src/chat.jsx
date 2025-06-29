@@ -3,14 +3,10 @@ import { useEffect, useState } from "react";
 import Avatar from "./Avatar";
 import uniqBy from "lodash/uniqBy";
 
-//axios.defaults.baseURL = "https://gossip-backend-wv5l.onrender.com";
-axios.get('https://gossip-backend-wv5l.onrender.com/profile', { withCredentials: true })
-
-//axios.defaults.withCredentials = true;
-
 export default function Chat() {
   const [ws, setWs] = useState(null);
   const [onlinePeople, setOnlinePeople] = useState({});
+  const [allUsers, setAllUsers] = useState({});
   const [selectedUserId, setSelectedUserId] = useState(null);
   const [newMessageText, setNewMessageText] = useState('');
   const [messages, setMessages] = useState([]);
@@ -18,20 +14,23 @@ export default function Chat() {
 
   useEffect(() => {
     connectToWebSocket();
+    axios.get('/users', { withCredentials: true })
+      .then(res => {
+        const usersMap = {};
+        res.data.forEach(user => {
+          usersMap[user._id] = user.username;
+        });
+        setAllUsers(usersMap);
+      });
   }, []);
 
   function connectToWebSocket() {
-    
     const websocket = new WebSocket("wss://gossip-backend-wv5l.onrender.com");
-
-
     websocket.addEventListener("open", () => {
       console.log("Connected to WebSocket Server");
       setWs(websocket);
     });
-
     websocket.addEventListener("message", handleMessage);
-
     websocket.addEventListener("close", () => {
       console.log("WebSocket Disconnected. Reconnecting...");
       setTimeout(connectToWebSocket, 1000);
@@ -41,9 +40,13 @@ export default function Chat() {
   function handleMessage(event) {
     try {
       const messageData = JSON.parse(event.data);
-      console.log("Received Message:", messageData);
-      if (messageData.online) {
-        showOnlinePeople(messageData.online, messageData.userId);
+      if (messageData.type === 'online-users') {
+        setUserId(messageData.currentUserId);
+        const onlineMap = {};
+        messageData.online.forEach(({ userId, username }) => {
+          onlineMap[userId] = username;
+        });
+        setOnlinePeople(onlineMap);
       } else if ('text' in messageData) {
         setMessages(prev => [...prev, {
           id: messageData.id,
@@ -52,30 +55,17 @@ export default function Chat() {
         }]);
       }
     } catch (error) {
-      console.error("Error parsing WebSocket message:", error);
+      console.error("WebSocket message error:", error);
     }
-  }
-
-  function showOnlinePeople(peopleArray, currentUserId) {
-    setUserId(currentUserId);
-    const people = {};
-    peopleArray.forEach(({ userId, username }) => {
-      if (userId !== currentUserId) {
-        people[userId] = username;
-      }
-    });
-    setOnlinePeople(people);
   }
 
   function sendMessage(ev) {
     ev.preventDefault();
     if (!ws || !selectedUserId || !newMessageText) return;
-
     const messageData = {
       recipient: selectedUserId,
       text: newMessageText,
     };
-
     ws.send(JSON.stringify(messageData));
     setMessages(prev => [...prev, {
       id: Date.now(),
@@ -88,12 +78,8 @@ export default function Chat() {
   useEffect(() => {
     if (selectedUserId && userId) {
       axios.get(`/messages/${userId}/${selectedUserId}`)
-        .then(res => {
-          setMessages(res.data);
-        })
-        .catch(err => {
-          console.error("Failed to fetch messages:", err);
-        });
+        .then(res => setMessages(res.data))
+        .catch(err => console.error("Fetch messages failed:", err));
     }
   }, [selectedUserId, userId]);
 
@@ -102,18 +88,25 @@ export default function Chat() {
   return (
     <div className="flex h-screen">
       <div className="bg-purple-100 w-1/5 p-4">
-        <div className="text-purple-600 font-bold flex gap-2 mb-4">💬 GOSSIP</div>
-        <h2 className="font-bold">Online Friends</h2>
-        {Object.keys(onlinePeople).map((id) => (
-          <div
-            key={id}
-            onClick={() => setSelectedUserId(id)}
-            className={`border-b border-gray-100 py-2 pl-4 flex items-center gap-2 cursor-pointer ${id === selectedUserId ? "bg-purple-200" : ""}`}
-          >
-            <Avatar username={onlinePeople[id]} userId={id} />
-            {onlinePeople[id]}
-          </div>
-        ))}
+        <div className="text-purple-600 font-bold mb-4">💬 GOSSIP</div>
+        <h2 className="font-bold">Friends</h2>
+        {Object.entries(allUsers).map(([id, username]) => {
+          if (id === userId) return null;
+          const isOnline = onlinePeople[id];
+          return (
+            <div
+              key={id}
+              onClick={() => setSelectedUserId(id)}
+              className={`border-b border-gray-100 py-2 pl-4 flex items-center gap-2 cursor-pointer ${id === selectedUserId ? "bg-purple-200" : ""}`}
+            >
+              <Avatar username={username} userId={id} />
+              <div className="flex items-center gap-1">
+                <div className={`w-2 h-2 rounded-full ${isOnline ? "bg-green-500" : "bg-gray-400"}`}></div>
+                <span>{username}</span>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       <div className="flex flex-col bg-purple-300 w-4/5 p-4">
@@ -149,3 +142,4 @@ export default function Chat() {
     </div>
   );
 }
+
