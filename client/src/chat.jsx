@@ -12,21 +12,20 @@ export default function Chat() {
   const [messages, setMessages] = useState([]);
   const [userId, setUserId] = useState(null);
 
-  // ✅ Fetch userId from /profile on page load
+  // ✅ Fetch userId and selectedUserId on load
   useEffect(() => {
     axios.get('/profile', { withCredentials: true })
       .then(res => {
+        console.log("🟢 Loaded userId:", res.data.userId);
         setUserId(res.data.userId);
 
-        // Also restore selectedUserId from localStorage
-        const savedSelected = localStorage.getItem("selectedUserId");
-        if (savedSelected) {
-          setSelectedUserId(savedSelected);
+        const savedSelectedId = localStorage.getItem("selectedUserId");
+        if (savedSelectedId) {
+          console.log("🟢 Loaded selectedUserId from localStorage:", savedSelectedId);
+          setSelectedUserId(savedSelectedId);
         }
       })
-      .catch(err => {
-        console.error("Error loading profile:", err);
-      });
+      .catch(err => console.error("❌ Error loading profile:", err));
   }, []);
 
   // ✅ Load all registered users
@@ -40,30 +39,35 @@ export default function Chat() {
     });
   }, []);
 
-  // ✅ Load messages only after both userId and selectedUserId are ready
+  // ✅ Fetch messages only when both userId and selectedUserId are available
   useEffect(() => {
+    console.log("🟡 userId:", userId);
+    console.log("🟡 selectedUserId:", selectedUserId);
+
     if (userId && selectedUserId) {
+      console.log("📥 Fetching messages for:", userId, selectedUserId);
       axios.get(`/messages/${userId}/${selectedUserId}`, { withCredentials: true })
         .then(res => {
+          console.log("✅ Got messages:", res.data);
           setMessages(res.data);
         })
-        .catch(err => console.error("Error loading messages:", err));
+        .catch(err => console.error("❌ Message fetch failed:", err));
     }
-  }, [selectedUserId, userId]);
+  }, [userId, selectedUserId]);
 
   // ✅ WebSocket connection
   useEffect(() => {
     const websocket = new WebSocket("wss://gossip-backend-wv5l.onrender.com");
 
     websocket.addEventListener("open", () => {
-      console.log("WebSocket connected");
+      console.log("🌐 WebSocket connected");
       setWs(websocket);
     });
 
     websocket.addEventListener("message", handleMessage);
 
     websocket.addEventListener("close", () => {
-      console.log("WebSocket disconnected, retrying...");
+      console.log("⚠️ WebSocket disconnected, retrying...");
       setTimeout(() => connectToWebSocket(), 1000);
     });
 
@@ -78,7 +82,6 @@ export default function Chat() {
           });
           setOnlinePeople(people);
         } else if ('text' in data) {
-          // Only update if message matches current chat
           if (data.sender === selectedUserId || data.recipient === selectedUserId) {
             setMessages(prev => [...prev, {
               id: data._id || Date.now(),
@@ -88,14 +91,13 @@ export default function Chat() {
           }
         }
       } catch (err) {
-        console.error("WebSocket error:", err);
+        console.error("WebSocket message error:", err);
       }
     }
 
     return () => websocket.close();
   }, [selectedUserId]);
 
-  // ✅ Send a message
   function sendMessage(e) {
     e.preventDefault();
     if (!ws || !selectedUserId || !newMessageText) return;
