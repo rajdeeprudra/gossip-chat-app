@@ -117,7 +117,7 @@ export default function Chat() {
   return (
     <div className="flex h-screen">
       <div className="bg-purple-100 w-1/5 p-4">
-        <div className="text-purple-600 font-bold text-3xl mb-4">💬 GOSSIP</div>
+        <div className="text-purple-600 font-semibold text-3xl mb-4">💬 GOSSIP</div>
         <h2 className="font-bold">Friends</h2>
         {Object.entries(allUsers).map(([id, username]) => {
           if (id === userId) return null;
