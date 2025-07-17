@@ -47,8 +47,8 @@ npm install
 Create a `.env` file inside `backend/` and add:
 
 ```env
-MONGODB_URI=mongodb+srv://rajdeeprudra2003:Hb01FDzmiDlb0TNY@cluster0.4wu75.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
-JWT_SECRET="SRGADFBZDGNARZDVZXRHRANZFDDTSGBSBNYBXFB"
+MONGODB_URI=YOUR MONGO URL
+JWT_SECRET="YOUR SECTER KEY"
 PORT=4040
 CLIENT_URL=" http://localhost:5173"
 ```
