@@ -109,12 +109,8 @@ Make sure the frontend is pointing to the backend URL (`localhost:4040` or your 
 
 ---
 
-## 📃 License
 
-This project is open-source under the [MIT License](LICENSE).
 
----
-
-## ❤️ Support
+##  Support
 
 If you like this project, consider giving it a ⭐ on [GitHub](https://github.com/your-username/gossip-chat-app)!
