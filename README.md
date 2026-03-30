@@ -7,7 +7,7 @@
 ## 🌟 Features
 
 - 🔐 **Authentication**
-  - User signup and login with secure JWT token-based authentication
+  - User signup and login with Google OAuth and secure JWT token-based authentication
 - 💬 **Real-time Messaging**
   - Bi-directional communication using WebSockets (WS)
 - 🧑‍🤝‍🧑 **Online Friends Detection**
